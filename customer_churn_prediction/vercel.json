@@ -1,0 +1,19 @@
+{
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ],
+  "env": {
+    "MLFLOW_TRACKING_URI": "@mlflow_tracking_uri",
+    "MLFLOW_MODEL_NAME": "@mlflow_model_name",
+    "MLFLOW_MODEL_STAGE": "Production"
+  }
+}
