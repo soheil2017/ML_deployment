@@ -17,7 +17,8 @@ load_dotenv()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATA_PATH = os.getenv("DATA_PATH", os.path.join(ROOT, "data/churn.csv"))
+DB_PATH = os.getenv("DB_PATH", os.path.join(ROOT, "data/churn.db"))
+DB_TABLE = os.getenv("DB_TABLE", "churn")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "customer-churn")
 TARGET_COL = os.getenv("TARGET_COL", "churn")
@@ -63,7 +64,7 @@ def main():
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT_NAME)
 
-    df = load_data(DATA_PATH)
+    df = load_data(DB_PATH, table=DB_TABLE)
     X_train, X_test, y_train, y_test, scaler, feature_cols = preprocess(df, target_col=TARGET_COL)
 
     # Save scaler as a shared artifact

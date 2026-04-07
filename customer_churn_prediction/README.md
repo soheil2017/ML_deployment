@@ -40,13 +40,15 @@ mlflow server --host 0.0.0.0 --port 5000
 # UI available at http://localhost:5000
 ```
 
-### 3. Add your dataset
-```
-data/churn.csv   ← drop dataset here
+### 3. Load dataset into SQLite
+```bash
+python src/setup_db.py --csv data/WA_Fn-UseC_-Telco-Customer-Churn.csv
+# Creates data/churn.db with a 'churn' table
 ```
 Set the target column name in `.env`:
 ```
-TARGET_COL=churn   # change to match your CSV column name
+TARGET_COL=churn   # must match the column name in the DB table
+DB_TABLE=churn
 ```
 
 ### 4. Train & Track Experiments

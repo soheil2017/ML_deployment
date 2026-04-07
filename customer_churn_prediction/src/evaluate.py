@@ -26,7 +26,8 @@ load_dotenv()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-DATA_PATH = os.getenv("DATA_PATH", os.path.join(ROOT, "data/churn.csv"))
+DB_PATH = os.getenv("DB_PATH", os.path.join(ROOT, "data/churn.db"))
+DB_TABLE = os.getenv("DB_TABLE", "churn")
 TARGET_COL = os.getenv("TARGET_COL", "churn")
 
 # Promotion thresholds — model must pass ALL to be promoted
@@ -53,7 +54,7 @@ def evaluate(model_name: str, stage: str = None, run_id: str = None, promote: bo
     model = mlflow.sklearn.load_model(model_uri)
 
     # Load and preprocess evaluation data
-    df = load_data(DATA_PATH)
+    df = load_data(DB_PATH, table=DB_TABLE)
     _, X_test, _, y_test, _, _ = preprocess(df, target_col=TARGET_COL)
 
     y_pred = model.predict(X_test)
