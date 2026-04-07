@@ -1,3 +1,4 @@
+import json
 import os
 import mlflow
 import mlflow.sklearn
@@ -9,13 +10,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-MODEL_NAME = os.getenv("MLFLOW_MODEL_NAME", "churn-random_forest")
-MODEL_STAGE = os.getenv("MLFLOW_MODEL_STAGE", "Production")
+MODEL_NAME = os.getenv("MLFLOW_MODEL_NAME", "churn-gradient_boosting")
+MODEL_ALIAS = os.getenv("MLFLOW_MODEL_ALIAS", "champion")
 
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
 
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-model_uri = f"models:/{MODEL_NAME}/{MODEL_STAGE}"
+model_uri = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
 
 model = None
 feature_cols = None
@@ -23,14 +24,12 @@ feature_cols = None
 try:
     model = mlflow.sklearn.load_model(model_uri)
 
-    # Retrieve feature columns logged during training from MLflow
+    # Retrieve feature columns from the JSON artifact logged during training
     client = mlflow.tracking.MlflowClient()
-    versions = client.search_model_versions(f"name='{MODEL_NAME}'")
-    prod_version = next((v for v in versions if v.current_stage == MODEL_STAGE), None)
-    if prod_version:
-        run = client.get_run(prod_version.run_id)
-        feature_cols_str = run.data.params.get("features", "")
-        feature_cols = eval(feature_cols_str) if feature_cols_str else None
+    mv = client.get_model_version_by_alias(MODEL_NAME, MODEL_ALIAS)
+    artifact_path = client.download_artifacts(mv.run_id, "feature_cols.json")
+    with open(artifact_path) as f:
+        feature_cols = json.load(f)
 except Exception as e:
     print(f"Warning: Could not load model at startup — {e}")
 
@@ -73,5 +72,5 @@ def predict(request: PredictRequest):
         churn=bool(prediction),
         probability=round(float(probability), 4),
         model_name=MODEL_NAME,
-        model_stage=MODEL_STAGE,
+        model_stage=MODEL_ALIAS,
     )

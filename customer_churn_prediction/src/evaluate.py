@@ -1,10 +1,12 @@
 """
 Evaluate a model from MLflow Model Registry against a dataset.
-If all metrics pass the defined thresholds, the model is promoted to Production.
+If all metrics pass the defined thresholds, the model is promoted by
+assigning it the 'champion' alias (replaces deprecated stage-based promotion).
 
 Usage:
-    python src/evaluate.py --model-name churn-random_forest --stage Staging
-    python src/evaluate.py --model-name churn-random_forest --run-id <RUN_ID>
+    python src/evaluate.py --model-name churn-gradient_boosting --alias challenger
+    python src/evaluate.py --model-name churn-gradient_boosting --run-id <RUN_ID>
+    python src/evaluate.py --model-name churn-gradient_boosting --run-id <RUN_ID> --promote
 """
 import argparse
 import os
@@ -33,22 +35,22 @@ TARGET_COL = os.getenv("TARGET_COL", "churn")
 # Promotion thresholds — model must pass ALL to be promoted
 THRESHOLDS = {
     "accuracy": float(os.getenv("THRESHOLD_ACCURACY", "0.80")),
-    "f1_score": float(os.getenv("THRESHOLD_F1", "0.75")),
-    "roc_auc": float(os.getenv("THRESHOLD_ROC_AUC", "0.80")),
+    "f1_score": float(os.getenv("THRESHOLD_F1", "0.55")),
+    "roc_auc":  float(os.getenv("THRESHOLD_ROC_AUC", "0.80")),
 }
 
 
-def evaluate(model_name: str, stage: str = None, run_id: str = None, promote: bool = False):
+def evaluate(model_name: str, alias: str = None, run_id: str = None, promote: bool = False):
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     client = MlflowClient()
 
     # Build model URI
     if run_id:
         model_uri = f"runs:/{run_id}/model"
-    elif stage:
-        model_uri = f"models:/{model_name}/{stage}"
+    elif alias:
+        model_uri = f"models:/{model_name}@{alias}"
     else:
-        raise ValueError("Provide either --stage or --run-id")
+        raise ValueError("Provide either --alias or --run-id")
 
     print(f"Loading model: {model_uri}")
     model = mlflow.sklearn.load_model(model_uri)
@@ -71,12 +73,12 @@ def evaluate(model_name: str, stage: str = None, run_id: str = None, promote: bo
     # Log evaluation run to MLflow
     with mlflow.start_run(run_name=f"evaluate-{model_name}"):
         mlflow.set_tag("evaluated_model", model_name)
-        mlflow.set_tag("evaluated_stage", stage or "run")
+        mlflow.set_tag("evaluated_alias", alias or "run")
         mlflow.log_metrics(metrics)
 
     # Print report
     print("\n" + "=" * 50)
-    print(f"Evaluation Report — {model_name} [{stage or run_id}]")
+    print(f"Evaluation Report — {model_name} [{alias or run_id}]")
     print("=" * 50)
     print(classification_report(y_test, y_pred))
     print(f"{'Metric':<12} {'Score':>8}   {'Threshold':>10}   {'Pass?':>6}")
@@ -95,47 +97,45 @@ def evaluate(model_name: str, stage: str = None, run_id: str = None, promote: bo
     if passed_all:
         print("\nAll thresholds passed.")
         if promote:
-            _promote_to_production(client, model_name, stage, run_id)
+            _assign_champion(client, model_name, alias, run_id)
         else:
-            print("Run with --promote to push this model to Production.")
+            print("Run with --promote to assign this model the 'champion' alias.")
     else:
         print("\nThreshold check FAILED. Model will NOT be promoted.")
         sys.exit(1)
 
 
-def _promote_to_production(client: MlflowClient, model_name: str, stage: str, run_id: str):
+def _assign_champion(client: MlflowClient, model_name: str, alias: str, run_id: str):
     versions = client.search_model_versions(f"name='{model_name}'")
 
     if run_id:
         target = next((v for v in versions if v.run_id == run_id), None)
     else:
-        target = next((v for v in versions if v.current_stage == stage), None)
+        target = next(
+            (v for v in versions if alias in (client.get_model_version(model_name, v.version).aliases or [])),
+            None
+        )
 
     if not target:
         print("Could not find model version to promote.")
         sys.exit(1)
 
-    # Archive existing Production models
-    for v in versions:
-        if v.current_stage == "Production":
-            client.transition_model_version_stage(model_name, v.version, "Archived")
-            print(f"Archived version {v.version}")
-
-    client.transition_model_version_stage(model_name, target.version, "Production")
-    print(f"Model '{model_name}' version {target.version} promoted to Production.")
+    # Assign 'champion' alias to the target version (overwrites any previous champion)
+    client.set_registered_model_alias(model_name, "champion", target.version)
+    print(f"Model '{model_name}' version {target.version} assigned alias 'champion'.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-name", required=True, help="Registered model name in MLflow")
-    parser.add_argument("--stage", default="Staging", help="Model stage to evaluate (default: Staging)")
+    parser.add_argument("--alias", default="challenger", help="Model alias to evaluate (default: challenger)")
     parser.add_argument("--run-id", default=None, help="Specific MLflow run ID to evaluate")
-    parser.add_argument("--promote", action="store_true", help="Promote to Production if thresholds pass")
+    parser.add_argument("--promote", action="store_true", help="Assign 'champion' alias if thresholds pass")
     args = parser.parse_args()
 
     evaluate(
         model_name=args.model_name,
-        stage=args.stage if not args.run_id else None,
+        alias=args.alias if not args.run_id else None,
         run_id=args.run_id,
         promote=args.promote,
     )

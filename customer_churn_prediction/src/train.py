@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import joblib
@@ -34,7 +35,12 @@ def train_and_log(model_name: str, model, X_train, X_test, y_train, y_test, feat
     with mlflow.start_run(run_name=model_name):
         mlflow.set_tag("model_name", model_name)
         mlflow.log_params(model.get_params())
-        mlflow.log_param("features", feature_cols)
+
+        # Log feature columns as a JSON artifact (params have 500-char limit)
+        with open("feature_cols.json", "w") as f:
+            json.dump(feature_cols, f)
+        mlflow.log_artifact("feature_cols.json")
+        os.remove("feature_cols.json")
 
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)

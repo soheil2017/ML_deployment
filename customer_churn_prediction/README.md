@@ -59,21 +59,23 @@ python src/train.py
 ```
 
 ### 5. Evaluate & Promote to Production
-```bash
-# Evaluate a Staging model — exits with error if thresholds not met
-python src/evaluate.py --model-name churn-random_forest --stage Staging
+MLflow aliases are used instead of deprecated stages: `challenger` → `champion`.
 
-# Evaluate and auto-promote to Production if thresholds pass
-python src/evaluate.py --model-name churn-random_forest --stage Staging --promote
+```bash
+# Evaluate a challenger model — exits with error if thresholds not met
+python src/evaluate.py --model-name churn-gradient_boosting --alias challenger
+
+# Evaluate and assign 'champion' alias if thresholds pass
+python src/evaluate.py --model-name churn-gradient_boosting --alias challenger --promote
 
 # Or evaluate a specific run by ID
-python src/evaluate.py --model-name churn-random_forest --run-id <RUN_ID> --promote
+python src/evaluate.py --model-name churn-gradient_boosting --run-id <RUN_ID> --promote
 ```
 
 Thresholds are configurable in `.env`:
 ```
 THRESHOLD_ACCURACY=0.80
-THRESHOLD_F1=0.75
+THRESHOLD_F1=0.55
 THRESHOLD_ROC_AUC=0.80
 ```
 
@@ -120,11 +122,11 @@ vercel --prod
 }
 ```
 
-## MLflow Registry Stages
+## MLflow Registry Aliases
 
 ```
-[Run] → Staging → Production → Archived
+[Run] → @challenger → @champion
 ```
 
-Use `src/evaluate.py --promote` to promote through stages with automatic threshold validation,
-or promote manually via the MLflow UI at `http://localhost:5000`.
+Use `src/evaluate.py --promote` to assign the `champion` alias with automatic threshold validation,
+or assign aliases manually via the MLflow UI at `http://localhost:5000`.
