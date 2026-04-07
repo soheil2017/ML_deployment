@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/soheil/PycharmProjects/PythonProject/MLflow/mlruns/0/5ccbd47138ff4d4bb62c06449efc3e71/artifacts
+end_time: 1753620612467
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 5ccbd47138ff4d4bb62c06449efc3e71
+run_name: bright-mare-911
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753620612465
+status: 3
+tags: []
+user_id: soheil

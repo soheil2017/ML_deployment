@@ -1,0 +1,10 @@
+artifact_location: file:///Users/soheil/PycharmProjects/PythonProject/MLflow/mlruns/0/models/m-8be06b77303c4c748db453ea0aa2ab1e/artifacts
+creation_timestamp: 1753620606277
+experiment_id: '0'
+last_updated_timestamp: 1753620607275
+model_id: m-8be06b77303c4c748db453ea0aa2ab1e
+model_type: null
+name: model
+source_run_id: 17b4128155e744819cf56b1a62f51a38
+status: 2
+status_message: null

@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/soheil/PycharmProjects/PythonProject/MLflow/mlruns/0/851e2e12af33471bae6cbf3ff77094f9/artifacts
+end_time: 1753620007621
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 851e2e12af33471bae6cbf3ff77094f9
+run_name: RandomForest
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753620000552
+status: 3
+tags: []
+user_id: soheil

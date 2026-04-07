@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/soheil/PycharmProjects/PythonProject/MLflow/mlruns/0/dc0d765800a04962916009f68244fb5e/artifacts
+end_time: 1753618772116
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: dc0d765800a04962916009f68244fb5e
+run_name: carefree-kite-193
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753618770651
+status: 3
+tags: []
+user_id: soheil

@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/soheil/PycharmProjects/PythonProject/MLflow/mlruns/0/137d3c4fe65e4a3e83cc4e5031475a27/artifacts
+end_time: 1753620000551
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 137d3c4fe65e4a3e83cc4e5031475a27
+run_name: LinearRegression
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753619999256
+status: 3
+tags: []
+user_id: soheil

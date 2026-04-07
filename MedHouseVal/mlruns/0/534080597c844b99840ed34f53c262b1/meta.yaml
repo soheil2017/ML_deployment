@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/soheil/PycharmProjects/PythonProject/MLflow/mlruns/0/534080597c844b99840ed34f53c262b1/artifacts
+end_time: 1753620009681
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 534080597c844b99840ed34f53c262b1
+run_name: KNN
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1753620008704
+status: 3
+tags: []
+user_id: soheil
