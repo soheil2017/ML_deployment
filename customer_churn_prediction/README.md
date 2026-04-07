@@ -53,10 +53,22 @@ python src/train.py
 # All runs tracked in MLflow with metrics, params, and artifacts
 ```
 
-### 5. Register Best Model to Production
+### 5. Evaluate & Promote to Production
 ```bash
-python src/register_model.py --run-id <RUN_ID> --model-name churn-random_forest
+# Evaluate a Staging model — fails if metrics don't meet thresholds
+python src/evaluate.py --model-name churn-random_forest --stage Staging
+
+# Evaluate and auto-promote if thresholds pass
+python src/evaluate.py --model-name churn-random_forest --stage Staging --promote
+
+# Or evaluate a specific run
+python src/evaluate.py --model-name churn-random_forest --run-id <RUN_ID> --promote
 ```
+
+Thresholds are set in `.env`:
+- `THRESHOLD_ACCURACY` (default: 0.80)
+- `THRESHOLD_F1` (default: 0.75)
+- `THRESHOLD_ROC_AUC` (default: 0.80)
 
 ### 6. Run API Locally
 ```bash
