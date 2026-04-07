@@ -1,9 +1,46 @@
 # Customer Churn Prediction
 
-End-to-end ML deployment: **MLflow** for lifecycle management + **Vercel** for production API.
-
 **Live API:** https://customer-churn-prediction-omega-opal.vercel.app
 **Swagger UI:** https://customer-churn-prediction-omega-opal.vercel.app/docs
+
+---
+
+## Project Goal
+
+This project demonstrates a **complete, production-grade ML pipeline from scratch to deployment** — the kind of end-to-end workflow used in real data science teams.
+
+The business problem: predict which customers are likely to cancel their subscription (churn) based on their usage and account data. Early identification of churning customers allows businesses to take proactive retention actions before losing them.
+
+The dataset used is the [IBM Telco Customer Churn dataset](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) — 7,043 customers, 20 features, binary target (`churn: yes/no`).
+
+The goal is not just to build a model, but to show **every step a real ML project goes through**:
+
+```
+Problem Definition → Data Ingestion → Preprocessing → Experimentation
+→ Model Selection → Evaluation → Registry → Deployment → Live API
+```
+
+---
+
+## The Role of MLflow
+
+[MLflow](https://mlflow.org) is the backbone of the ML lifecycle in this project. It handles four critical concerns:
+
+**1. Experiment Tracking**
+Every training run is automatically logged — hyperparameters, metrics (accuracy, F1, ROC-AUC), and artifacts. This makes experiments reproducible and comparable across runs and team members.
+
+**2. Model Registry**
+All trained models are registered in a central registry with versioning. You can always trace which code, data, and parameters produced any given model version.
+
+**3. Alias-based Promotion**
+Instead of hardcoding a model version in the API, models are promoted through aliases:
+- `@challenger` — model under evaluation
+- `@champion` — the current best model approved for production
+
+When a better model is trained and passes the evaluation thresholds, the `@champion` alias is reassigned. No code change needed.
+
+**4. Threshold-gated Deployment**
+Before any model reaches production, it must pass automated metric thresholds (accuracy ≥ 0.80, F1 ≥ 0.55, ROC-AUC ≥ 0.80). If it fails, promotion is blocked. This prevents bad models from reaching users.
 
 ---
 
