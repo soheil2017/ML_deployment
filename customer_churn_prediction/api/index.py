@@ -1,37 +1,31 @@
 import json
 import os
-import mlflow
-import mlflow.sklearn
+import joblib
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
-load_dotenv()
-
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-MODEL_NAME = os.getenv("MLFLOW_MODEL_NAME", "churn-gradient_boosting")
-MODEL_ALIAS = os.getenv("MLFLOW_MODEL_ALIAS", "champion")
+# Bundle directory — model artifacts exported from MLflow and committed to the repo
+BUNDLE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bundle")
 
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
 
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-model_uri = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
-
 model = None
 feature_cols = None
+meta = {}
 
 try:
-    model = mlflow.sklearn.load_model(model_uri)
+    model = joblib.load(os.path.join(BUNDLE_DIR, "model.pkl"))
 
-    # Retrieve feature columns from the JSON artifact logged during training
-    client = mlflow.tracking.MlflowClient()
-    mv = client.get_model_version_by_alias(MODEL_NAME, MODEL_ALIAS)
-    artifact_path = client.download_artifacts(mv.run_id, "feature_cols.json")
-    with open(artifact_path) as f:
+    with open(os.path.join(BUNDLE_DIR, "feature_cols.json")) as f:
         feature_cols = json.load(f)
+
+    with open(os.path.join(BUNDLE_DIR, "meta.json")) as f:
+        meta = json.load(f)
+
+    print(f"Loaded model: {meta.get('model_name')}@{meta.get('model_alias')} v{meta.get('model_version')}")
 except Exception as e:
-    print(f"Warning: Could not load model at startup — {e}")
+    print(f"Warning: Could not load model — {e}")
 
 
 class PredictRequest(BaseModel):
@@ -42,12 +36,17 @@ class PredictResponse(BaseModel):
     churn: bool
     probability: float
     model_name: str
-    model_stage: str
+    model_version: str
 
 
 @app.get("/")
 def root():
-    return {"status": "ok", "model": MODEL_NAME, "stage": MODEL_STAGE}
+    return {
+        "status": "ok",
+        "model": meta.get("model_name"),
+        "alias": meta.get("model_alias"),
+        "version": meta.get("model_version"),
+    }
 
 
 @app.get("/health")
@@ -71,6 +70,6 @@ def predict(request: PredictRequest):
     return PredictResponse(
         churn=bool(prediction),
         probability=round(float(probability), 4),
-        model_name=MODEL_NAME,
-        model_stage=MODEL_ALIAS,
+        model_name=meta.get("model_name", "unknown"),
+        model_version=str(meta.get("model_version", "unknown")),
     )

@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
-*.pkl
 *.csv
 .env
 .DS_Store
@@ -9,3 +8,9 @@ data/
 models/
 mlruns/
 notebooks/.ipynb_checkpoints/
+
+# Allow bundle/ — model artifacts committed for Vercel deployment
+!bundle/
+!bundle/*.pkl
+!bundle/*.json
+.vercel
