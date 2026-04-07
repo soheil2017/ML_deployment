@@ -9,7 +9,6 @@ Usage:
 import argparse
 import os
 import sys
-import joblib
 import mlflow
 import mlflow.sklearn
 from mlflow.tracking import MlflowClient
@@ -24,8 +23,10 @@ from preprocess import load_data, preprocess
 
 load_dotenv()
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-DATA_PATH = os.getenv("DATA_PATH", "data/churn.csv")
+DATA_PATH = os.getenv("DATA_PATH", os.path.join(ROOT, "data/churn.csv"))
 TARGET_COL = os.getenv("TARGET_COL", "churn")
 
 # Promotion thresholds — model must pass ALL to be promoted
@@ -50,10 +51,6 @@ def evaluate(model_name: str, stage: str = None, run_id: str = None, promote: bo
 
     print(f"Loading model: {model_uri}")
     model = mlflow.sklearn.load_model(model_uri)
-
-    # Load scaler and feature columns saved during training
-    scaler = joblib.load("models/scaler.pkl")
-    feature_cols = joblib.load("models/feature_cols.pkl")
 
     # Load and preprocess evaluation data
     df = load_data(DATA_PATH)

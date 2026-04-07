@@ -15,9 +15,12 @@ from preprocess import load_data, preprocess
 
 load_dotenv()
 
-DATA_PATH = os.getenv("DATA_PATH", "data/churn.csv")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+DATA_PATH = os.getenv("DATA_PATH", os.path.join(ROOT, "data/churn.csv"))
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "customer-churn")
+TARGET_COL = os.getenv("TARGET_COL", "churn")
 
 MODELS = {
     "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
@@ -61,12 +64,13 @@ def main():
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     df = load_data(DATA_PATH)
-    X_train, X_test, y_train, y_test, scaler, feature_cols = preprocess(df)
+    X_train, X_test, y_train, y_test, scaler, feature_cols = preprocess(df, target_col=TARGET_COL)
 
     # Save scaler as a shared artifact
-    os.makedirs("models", exist_ok=True)
-    joblib.dump(scaler, "models/scaler.pkl")
-    joblib.dump(feature_cols, "models/feature_cols.pkl")
+    models_dir = os.path.join(ROOT, "models")
+    os.makedirs(models_dir, exist_ok=True)
+    joblib.dump(scaler, os.path.join(models_dir, "scaler.pkl"))
+    joblib.dump(feature_cols, os.path.join(models_dir, "feature_cols.pkl"))
 
     best_auc, best_run_id, best_model_name = 0, None, None
     for name, model in MODELS.items():
@@ -75,7 +79,7 @@ def main():
             best_auc, best_run_id, best_model_name = auc, run_id, name
 
     print(f"\nBest model: {best_model_name} (ROC-AUC={best_auc:.4f}, run_id={best_run_id})")
-    print("To promote to production, run: python src/register_model.py")
+    print("To evaluate and promote, run: python src/evaluate.py --model-name <name> --stage Staging --promote")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 import os
-import joblib
 import mlflow
 import mlflow.sklearn
 import numpy as np
@@ -15,21 +14,29 @@ MODEL_STAGE = os.getenv("MLFLOW_MODEL_STAGE", "Production")
 
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
 
-# Load model and scaler once at startup
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 model_uri = f"models:/{MODEL_NAME}/{MODEL_STAGE}"
 
+model = None
+feature_cols = None
+
 try:
     model = mlflow.sklearn.load_model(model_uri)
-    scaler = joblib.load("models/scaler.pkl")
-    feature_cols = joblib.load("models/feature_cols.pkl")
+
+    # Retrieve feature columns logged during training from MLflow
+    client = mlflow.tracking.MlflowClient()
+    versions = client.search_model_versions(f"name='{MODEL_NAME}'")
+    prod_version = next((v for v in versions if v.current_stage == MODEL_STAGE), None)
+    if prod_version:
+        run = client.get_run(prod_version.run_id)
+        feature_cols_str = run.data.params.get("features", "")
+        feature_cols = eval(feature_cols_str) if feature_cols_str else None
 except Exception as e:
-    model, scaler, feature_cols = None, None, None
     print(f"Warning: Could not load model at startup — {e}")
 
 
 class PredictRequest(BaseModel):
-    features: dict  # {feature_name: value}
+    features: dict[str, float]
 
 
 class PredictResponse(BaseModel):
@@ -53,14 +60,14 @@ def health():
 def predict(request: PredictRequest):
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
+    if feature_cols is None:
+        raise HTTPException(status_code=503, detail="Feature columns not available")
 
-    # Align input features with training columns
-    input_df = {col: request.features.get(col, 0) for col in feature_cols}
-    x = np.array(list(input_df.values())).reshape(1, -1)
-    x_scaled = scaler.transform(x)
+    # Align input with training feature columns (fill missing with 0)
+    x = np.array([request.features.get(col, 0) for col in feature_cols]).reshape(1, -1)
 
-    prediction = model.predict(x_scaled)[0]
-    probability = model.predict_proba(x_scaled)[0][1]
+    prediction = model.predict(x)[0]
+    probability = model.predict_proba(x)[0][1]
 
     return PredictResponse(
         churn=bool(prediction),
