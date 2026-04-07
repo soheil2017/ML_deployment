@@ -130,8 +130,6 @@ python3 src/evaluate.py --model-name churn-gradient_boosting --run-id <RUN_ID> -
 
 **Output:**
 
-![Evaluation Output](docs/evaluation_output.png)
-
 ```
 ==================================================
 Evaluation Report — churn-gradient_boosting [<RUN_ID>]
