@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: customer_churn_prediction
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate bundle exists
+        run: |
+          echo "Checking bundle artifacts..."
+          test -f bundle/model.pkl       && echo "✓ model.pkl" || (echo "✗ model.pkl missing" && exit 1)
+          test -f bundle/feature_cols.json && echo "✓ feature_cols.json" || (echo "✗ feature_cols.json missing" && exit 1)
+          test -f bundle/meta.json       && echo "✓ meta.json" || (echo "✗ meta.json missing" && exit 1)
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short

@@ -1,0 +1,52 @@
+name: Export & Deploy Champion Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: "MLflow registered model name"
+        required: true
+        default: "churn-gradient_boosting"
+      alias:
+        description: "Model alias to export"
+        required: true
+        default: "champion"
+
+jobs:
+  export-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: customer_churn_prediction
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Export champion model from MLflow
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_MODEL_NAME: ${{ github.event.inputs.model_name }}
+          MLFLOW_MODEL_ALIAS: ${{ github.event.inputs.alias }}
+        run: python src/export_model.py
+
+      - name: Run tests against new bundle
+        run: pytest tests/ -v --tb=short
+
+      - name: Commit and push new bundle
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add bundle/
+          git diff --staged --quiet && echo "No bundle changes." || \
+          git commit -m "Deploy ${{ github.event.inputs.model_name }}@${{ github.event.inputs.alias }} to production"
+          git push
