@@ -5,7 +5,7 @@
 
 ---
 
-![Churn Predictor UI](docs/Predictor.png)
+<img src="docs/Predictor.png" alt="Churn Predictor UI" width="600" />
 
 ---
 
