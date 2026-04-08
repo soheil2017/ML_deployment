@@ -8,7 +8,7 @@ from pydantic import BaseModel
 # Bundle directory — model artifacts exported from MLflow and committed to the repo
 BUNDLE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bundle")
 
-app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
+app = FastAPI(title="Customer Churn Prediction API", version="1.0.1")
 
 model = None
 feature_cols = None
