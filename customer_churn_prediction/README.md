@@ -337,3 +337,44 @@ To show that model selection is part of the pipeline. The best model is not chos
 
 **Why apply the StandardScaler separately instead of using a Pipeline?**
 The scaler is exported to `bundle/scaler.pkl` and applied in the API. This makes the scaling step explicit and visible, which is easier to understand and debug. A `sklearn.Pipeline` wrapping scaler + model would also work and is a valid alternative.
+
+---
+
+## Skills Demonstrated
+
+This project covers both **MLOps** and **DevOps** — the combination expected from ML engineers in industry.
+
+### MLOps (primary focus)
+
+These skills are specific to machine learning systems:
+
+| Skill | Where in this project |
+|---|---|
+| Experiment tracking | `src/train.py` logs every run to MLflow (params, metrics, artifacts) |
+| Model registry | All models are versioned and registered in MLflow |
+| Alias-based promotion | `@challenger` → `@champion` via `src/evaluate.py` |
+| Threshold-gated deployment | Model is blocked from production if accuracy, F1, or ROC-AUC fail |
+| Model bundling | `src/export_model.py` exports model + scaler + metadata to `bundle/` |
+| Reproducibility | Every model version is traceable to its run, data, and parameters |
+| Train/serve consistency | Same `scaler.pkl` used in training is applied at inference time in the API |
+
+### DevOps (supporting)
+
+General software engineering practices applied to the ML system:
+
+| Skill | Where in this project |
+|---|---|
+| CI/CD | GitHub Actions runs tests on every push to `main` |
+| Serverless deployment | FastAPI deployed to Vercel (no server to manage) |
+| REST API design | FastAPI with typed request/response schemas, health check endpoint |
+| Automated testing | 15 pytest tests covering the API and preprocessing pipeline |
+| Git workflow | History rewriting, force push, branch protection via CI |
+
+### The distinction
+
+|  | MLOps | DevOps |
+|---|---|---|
+| **Core concern** | Model quality, reproducibility, promotion | Code delivery, infrastructure, automation |
+| **This project** | Primary | Supporting |
+
+In industry, MLOps engineers are expected to know both. You cannot do MLOps without DevOps fundamentals. This project demonstrates exactly that combination.
