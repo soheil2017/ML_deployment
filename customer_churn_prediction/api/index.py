@@ -4,10 +4,13 @@ import joblib
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 # Bundle directory — model artifacts exported from MLflow and committed to the repo
-BUNDLE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bundle")
+ROOT_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BUNDLE_DIR = os.path.join(ROOT_DIR, "bundle")
+FRONTEND_DIR = os.path.join(ROOT_DIR, "frontend")
 
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.2")
 
@@ -42,8 +45,15 @@ class PredictResponse(BaseModel):
     model_version: str
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def root():
+    html_path = os.path.join(FRONTEND_DIR, "index.html")
+    with open(html_path) as f:
+        return f.read()
+
+
+@app.get("/api/status")
+def status():
     return {
         "status": "ok",
         "model": meta.get("model_name"),

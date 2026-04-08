@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Churn Predictor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 { font-size: 1.9rem; font-weight: 700; color: #1a1a2e; }
+    header p  { margin-top: 6px; color: #555; font-size: 0.95rem; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 32px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #888;
+      margin: 24px 0 12px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    .row { display: flex; gap: 16px; }
+    .row .field { flex: 1; }
+
+    .field { display: flex; flex-direction: column; margin-bottom: 16px; }
+    .field label { font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; color: #333; }
+
+    input[type="number"], select {
+      border: 1.5px solid #dde1e9;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      color: #1a1a2e;
+      background: #fafbfc;
+      transition: border-color .2s;
+      appearance: none;
+    }
+    input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: #4f6ef7;
+      background: #fff;
+    }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .toggle-row span { font-size: 0.86rem; font-weight: 600; color: #333; }
+    .switch { position: relative; width: 40px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: #d0d5dd;
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background .25s;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .25s;
+    }
+    .switch input:checked + .slider { background: #4f6ef7; }
+    .switch input:checked + .slider::before { transform: translateX(18px); }
+
+    button[type="submit"] {
+      width: 100%;
+      margin-top: 8px;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      background: #4f6ef7;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .02em;
+      transition: background .2s, transform .1s;
+    }
+    button[type="submit"]:hover   { background: #3b57e0; }
+    button[type="submit"]:active  { transform: scale(.98); }
+    button[type="submit"]:disabled { background: #a0aec0; cursor: default; }
+
+    /* Result card */
+    #result {
+      margin-top: 20px;
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: none;
+    }
+    #result.churn    { background: #fff1f0; border: 1.5px solid #ffccc7; }
+    #result.no-churn { background: #f0fff4; border: 1.5px solid #b7eb8f; }
+
+    #result .verdict {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    #result.churn    .verdict { color: #cf1322; }
+    #result.no-churn .verdict { color: #237804; }
+
+    #result .prob-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    .bar-track {
+      height: 8px;
+      background: #e8e8e8;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: width .6s ease;
+    }
+    #result.churn    .bar-fill { background: #ff4d4f; }
+    #result.no-churn .bar-fill { background: #52c41a; }
+
+    .meta { margin-top: 10px; font-size: 0.75rem; color: #888; }
+
+    .error-msg {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: #fff1f0;
+      border: 1.5px solid #ffccc7;
+      color: #cf1322;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    footer {
+      margin-top: 32px;
+      font-size: 0.75rem;
+      color: #aaa;
+      text-align: center;
+    }
+    footer a { color: #aaa; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Customer Churn Predictor</h1>
+  <p>Enter customer details to predict the probability of churn.</p>
+</header>
+
+<div class="card">
+  <form id="churnForm">
+
+    <div class="section-title">Account &amp; Usage</div>
+    <div class="row">
+      <div class="field">
+        <label for="tenure">Tenure (months)</label>
+        <input type="number" id="tenure" min="0" max="120" value="12" required />
+      </div>
+      <div class="field">
+        <label for="monthly">Monthly Charges ($)</label>
+        <input type="number" id="monthly" min="0" step="0.01" value="65.00" required />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="contract">Contract Type</label>
+      <select id="contract">
+        <option value="Month-to-month">Month-to-month</option>
+        <option value="One year">One year</option>
+        <option value="Two year">Two year</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="internet">Internet Service</label>
+      <select id="internet">
+        <option value="Fiber optic">Fiber optic</option>
+        <option value="DSL">DSL</option>
+        <option value="No">No internet service</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="payment">Payment Method</label>
+      <select id="payment">
+        <option value="Electronic check">Electronic check</option>
+        <option value="Mailed check">Mailed check</option>
+        <option value="Bank transfer (automatic)">Bank transfer (automatic)</option>
+        <option value="Credit card (automatic)">Credit card (automatic)</option>
+      </select>
+    </div>
+
+    <div class="section-title">Customer Profile</div>
+
+    <div class="toggle-row">
+      <span>Senior Citizen</span>
+      <label class="switch">
+        <input type="checkbox" id="senior" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>Has Partner</span>
+      <label class="switch">
+        <input type="checkbox" id="partner" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span>Paperless Billing</span>
+      <label class="switch">
+        <input type="checkbox" id="paperless" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button type="submit" id="submitBtn">Predict Churn</button>
+  </form>
+
+  <div id="errorMsg" class="error-msg"></div>
+
+  <div id="result">
+    <div class="verdict" id="verdict"></div>
+    <div class="prob-label" id="probLabel"></div>
+    <div class="bar-track">
+      <div class="bar-fill" id="barFill" style="width:0%"></div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </div>
+</div>
+
+<footer>
+  Powered by <a href="/docs" target="_blank">FastAPI</a> &middot;
+  Model: Logistic Regression &middot;
+  <a href="/health" target="_blank">Health</a>
+</footer>
+
+<script>
+  const form      = document.getElementById("churnForm");
+  const submitBtn = document.getElementById("submitBtn");
+  const resultDiv = document.getElementById("result");
+  const errorMsg  = document.getElementById("errorMsg");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    submitBtn.disabled  = true;
+    submitBtn.textContent = "Predicting…";
+    resultDiv.style.display = "none";
+    errorMsg.style.display  = "none";
+
+    const tenure   = parseFloat(document.getElementById("tenure").value);
+    const monthly  = parseFloat(document.getElementById("monthly").value);
+    const total    = tenure * monthly;
+    const contract = document.getElementById("contract").value;
+    const internet = document.getElementById("internet").value;
+    const payment  = document.getElementById("payment").value;
+    const senior   = document.getElementById("senior").checked   ? 1 : 0;
+    const partner  = document.getElementById("partner").checked;
+    const paperless= document.getElementById("paperless").checked;
+
+    // Build one-hot encoded feature dict (matching training column names)
+    const features = {
+      tenure,
+      monthlycharges: monthly,
+      totalcharges:   total,
+      seniorcitizen:  senior,
+
+      [`contract_${contract}`]:         1,
+      [`internetservice_${internet}`]:  1,
+      [`paymentmethod_${payment}`]:     1,
+      [`partner_${partner ? "Yes" : "No"}`]:        1,
+      [`paperlessbilling_${paperless ? "Yes" : "No"}`]: 1,
+    };
+
+    try {
+      const res  = await fetch("/predict", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ features }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const pct  = (data.probability * 100).toFixed(1);
+
+      resultDiv.className = data.churn ? "churn" : "no-churn";
+      document.getElementById("verdict").textContent =
+        data.churn ? "⚠ High Churn Risk" : "✓ Low Churn Risk";
+      document.getElementById("probLabel").textContent =
+        `Churn probability: ${pct}%`;
+      document.getElementById("barFill").style.width = `${pct}%`;
+      document.getElementById("meta").textContent =
+        `Model: ${data.model_name}  ·  Version: ${data.model_version}`;
+
+      resultDiv.style.display = "block";
+    } catch (err) {
+      errorMsg.textContent    = `Error: ${err.message}`;
+      errorMsg.style.display  = "block";
+    } finally {
+      submitBtn.disabled    = false;
+      submitBtn.textContent = "Predict Churn";
+    }
+  });
+</script>
+</body>
+</html>
