@@ -1,266 +1,187 @@
-# Customer Churn Prediction
+# Customer Churn Prediction — End-to-End ML Pipeline
 
-**Live API:** https://customer-churn-prediction-omega-opal.vercel.app
-**Swagger UI:** https://customer-churn-prediction-omega-opal.vercel.app/docs
-
----
-
-## Project Goal
-
-This project demonstrates a **complete, production-grade ML pipeline from scratch to deployment** — the kind of end-to-end workflow used in real data science teams.
-
-The business problem: predict which customers are likely to cancel their subscription (churn) based on their usage and account data. Early identification of churning customers allows businesses to take proactive retention actions before losing them.
-
-The dataset used is the [IBM Telco Customer Churn dataset](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) — 7,043 customers, 20 features, binary target (`churn: yes/no`).
-
-The goal is not just to build a model, but to show **every step a real ML project goes through**:
-
-```
-Problem Definition → Data Ingestion → Preprocessing → Experimentation
-→ Model Selection → Evaluation → Registry → Deployment → Live API
-```
+**Live Demo:** https://customer-churn-prediction-omega-opal.vercel.app
+**API Docs (Swagger):** https://customer-churn-prediction-omega-opal.vercel.app/docs
 
 ---
 
-## The Role of MLflow
+![Churn Predictor UI](docs/Predictor.png)
 
-[MLflow](https://mlflow.org) is the backbone of the ML lifecycle in this project. It handles four critical concerns:
+---
 
-**1. Experiment Tracking**
-Every training run is automatically logged — hyperparameters, metrics (accuracy, F1, ROC-AUC), and artifacts. This makes experiments reproducible and comparable across runs and team members.
+## What is this project?
 
-**2. Model Registry**
-All trained models are registered in a central registry with versioning. You can always trace which code, data, and parameters produced any given model version.
+This project shows **every step a real ML project goes through** — from raw data to a live production API that anyone can call.
 
-**3. Alias-based Promotion**
-Instead of hardcoding a model version in the API, models are promoted through aliases:
-- `@challenger` — model under evaluation
+The business problem: predict which telecom customers are about to cancel their subscription (**churn**). If a company knows who is about to leave, they can offer discounts or take action before it happens.
+
+The dataset is the [IBM Telco Customer Churn dataset](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) — 7,043 customers, 20 features, binary target (churn: Yes / No).
+
+---
+
+## What does "end-to-end" mean here?
+
+Most ML tutorials stop at training a model and printing accuracy. This project goes all the way:
+
+```
+Raw CSV
+  → SQLite database
+    → Preprocessing (clean, encode, scale)
+      → Train 3 models + track experiments (MLflow)
+        → Evaluate against quality thresholds
+          → Promote best model as "champion"
+            → Export model to bundle
+              → Deploy as REST API (Vercel)
+                → CI/CD tests run on every push (GitHub Actions)
+                  → Frontend UI for non-technical users
+```
+
+---
+
+## Key Technologies
+
+| Tool | What it does in this project |
+|---|---|
+| **scikit-learn** | Trains the ML models (Logistic Regression, Random Forest, Gradient Boosting) |
+| **MLflow** | Tracks experiments, stores model versions, manages promotion with aliases |
+| **FastAPI** | Serves predictions as a REST API |
+| **Vercel** | Hosts the API and frontend in production (serverless, free tier) |
+| **GitHub Actions** | Runs automated tests on every push (CI/CD) |
+| **SQLite** | Stores the training data as a proper database (not a raw CSV) |
+| **pytest** | Automated tests for the API and preprocessing |
+
+---
+
+## Architecture Overview
+
+```
+                    ┌──────────────┐
+                    │  CSV Dataset │
+                    └──────┬───────┘
+                           │ setup_db.py
+                    ┌──────▼───────┐
+                    │ SQLite (DB)  │
+                    └──────┬───────┘
+                           │ train.py
+                    ┌──────▼───────────────────┐
+                    │  MLflow Experiment        │
+                    │  - random_forest          │
+                    │  - gradient_boosting      │
+                    │  - logistic_regression    │
+                    └──────┬───────────────────┘
+                           │ evaluate.py (threshold gate)
+                    ┌──────▼───────┐
+                    │  @champion   │  ← best model that passed all thresholds
+                    └──────┬───────┘
+                           │ export_model.py
+                    ┌──────▼───────────────────┐
+                    │  bundle/                  │
+                    │  - model.pkl              │
+                    │  - scaler.pkl             │
+                    │  - feature_cols.json      │
+                    │  - meta.json              │
+                    └──────┬───────────────────┘
+                           │ git push
+              ┌────────────▼────────────────────┐
+              │  GitHub Actions (CI)             │
+              │  - validates bundle exists       │
+              │  - runs 15 automated tests       │
+              └────────────┬────────────────────┘
+                           │ Vercel auto-deploy
+                    ┌──────▼───────┐
+                    │  Production  │
+                    │  FastAPI     │
+                    │  + UI        │
+                    └──────────────┘
+```
+
+---
+
+## What is MLflow and why does it matter?
+
+> If you have never used MLflow before, here is a quick explanation.
+
+When training ML models, things get messy fast. You try different parameters, different algorithms, and after a week you have no idea which run gave the best result or how to reproduce it.
+
+**MLflow solves this.** Every training run is automatically saved with:
+- The exact parameters used (e.g. `n_estimators=100`)
+- The metrics (accuracy, F1, ROC-AUC)
+- The trained model file
+- Artifacts like the feature columns list and scaler
+
+### Model Aliases: @challenger and @champion
+
+Instead of hardcoding a model version number in the API, this project uses **aliases**:
+
+- `@challenger` — a new model under evaluation
 - `@champion` — the current best model approved for production
 
-When a better model is trained and passes the evaluation thresholds, the `@champion` alias is reassigned. No code change needed.
+When you train a better model, you run `evaluate.py`. If it passes all quality thresholds, it is automatically promoted to `@champion`. The API always serves whatever is tagged `@champion` — no code changes needed.
 
-**4. Threshold-gated Deployment**
-Before any model reaches production, it must pass automated metric thresholds (accuracy ≥ 0.80, F1 ≥ 0.55, ROC-AUC ≥ 0.80). If it fails, promotion is blocked. This prevents bad models from reaching users.
+```
+New training run → @challenger → threshold check → (pass) → @champion → exported to bundle/
+```
+
+### Threshold-Gated Promotion
+
+A model is only promoted if it passes ALL three thresholds:
+
+| Metric | Threshold | Why |
+|---|---|---|
+| Accuracy | ≥ 0.80 | At least 80% of predictions must be correct |
+| F1 Score | ≥ 0.55 | Balances precision and recall on the minority class (churners) |
+| ROC-AUC | ≥ 0.80 | Measures how well the model separates churners from non-churners |
+
+If any threshold fails, the model is blocked from production. This prevents regressions.
 
 ---
 
-## Architecture
+## What is CI/CD and how is it set up here?
 
-```
-CSV → SQLite → Train (MLflow tracking) → Evaluate (threshold gate) → @champion → Export → bundle/ → Vercel (prod)
-```
+> CI/CD stands for Continuous Integration / Continuous Deployment.
 
----
+Every time code is pushed to the `main` branch, **GitHub Actions automatically**:
 
-## Project Structure
+1. Installs all dependencies
+2. Checks that the model bundle files exist (`model.pkl`, `scaler.pkl`, `feature_cols.json`, `meta.json`)
+3. Runs all 15 automated tests
 
-```
-customer_churn_prediction/
-├── data/                    # Drop your CSV here (gitignored)
-├── bundle/                  # Exported model artifacts committed for Vercel
-│   ├── model.pkl            # Champion model (108 KB)
-│   ├── feature_cols.json    # Feature column names
-│   └── meta.json            # Model metadata (name, alias, version, run_id)
-├── notebooks/               # Exploration
-├── src/
-│   ├── setup_db.py          # Load CSV into SQLite
-│   ├── preprocess.py        # Data preprocessing pipeline
-│   ├── train.py             # Train models + log to MLflow
-│   ├── evaluate.py          # Evaluate + assign @champion alias if thresholds pass
-│   ├── export_model.py      # Export champion model from MLflow into bundle/
-│   └── register_model.py    # Manual alias assignment by run ID
-├── api/
-│   ├── index.py             # FastAPI app — loads from bundle/ (no MLflow at runtime)
-│   └── requirements.txt     # Lightweight serving-only dependencies
-├── vercel.json              # Vercel deployment config
-├── .env                     # Environment variables (gitignored)
-└── requirements.txt         # Full development dependencies
-```
+If any test fails, the workflow is marked as failed and Vercel does not deploy broken code.
+
+The workflow file is at `.github/workflows/ci.yml`.
+
+There is also a **manual deploy workflow** (`.github/workflows/deploy.yml`) that:
+1. Exports the current `@champion` model from MLflow
+2. Runs the tests against the new bundle
+3. Commits the updated bundle and pushes — which triggers Vercel to redeploy
 
 ---
 
-## Full Pipeline
-
-### 1. Setup
-
-```bash
-pip3 install -r requirements.txt
-# Edit .env with your MLflow URI and dataset config
-```
-
-### 2. Load Dataset into SQLite
-
-```bash
-python3 src/setup_db.py --csv data/WA_Fn-UseC_-Telco-Customer-Churn.csv
-# Creates data/churn.db with a 'churn' table (7043 rows, 21 columns)
-```
-
-Set the target column in `.env`:
-```
-TARGET_COL=churn
-DB_TABLE=churn
-```
-
-### 3. Start MLflow Tracking Server
-
-Run this from anywhere — paths are explicit so all MLflow data stays inside this project folder:
-
-```bash
-mlflow server --host 0.0.0.0 --port 5000 \
-  --backend-store-uri sqlite:///$(pwd)/mlflow.db \
-  --default-artifact-root $(pwd)/mlartifacts
-# UI available at http://localhost:5000
-```
-
-### 4. Train & Track Experiments
-
-```bash
-python3 src/train.py
-```
-
-Trains 3 models and logs all runs to MLflow:
-
-| Model | Accuracy | F1 | ROC-AUC |
-|---|---|---|---|
-| Random Forest | 0.78 | 0.52 | 0.8203 |
-| **Gradient Boosting** | **0.80** | **0.57** | **0.8461** |
-| Logistic Regression | 0.77 | 0.55 | 0.8028 |
-
-### 5. Evaluate & Promote to @champion
-
-```bash
-python3 src/evaluate.py --model-name churn-gradient_boosting --run-id <RUN_ID> --promote
-```
-
-**Output:**
-
-```
-==================================================
-Evaluation Report — churn-gradient_boosting [<RUN_ID>]
-==================================================
-              precision    recall  f1-score   support
-
-           0       0.83      0.91      0.87      1035
-           1       0.67      0.50      0.57       374
-
-    accuracy                           0.80      1409
-   macro avg       0.75      0.70      0.72      1409
-weighted avg       0.79      0.80      0.79      1409
-
-Metric          Score    Threshold    Pass?
----------------------------------------------
-accuracy       0.8013       0.8000     PASS
-f1_score       0.5706       0.5500     PASS
-roc_auc        0.8461       0.8000     PASS
-==================================================
-
-All thresholds passed.
-Model 'churn-gradient_boosting' version 1 assigned alias 'champion'.
-```
-
-Thresholds are configurable in `.env`:
-```
-THRESHOLD_ACCURACY=0.80
-THRESHOLD_F1=0.55
-THRESHOLD_ROC_AUC=0.80
-```
-
-### 6. Export Champion Model to Bundle
-
-```bash
-python3 src/export_model.py
-# Model saved: bundle/model.pkl (108 KB)
-# Feature cols saved: bundle/feature_cols.json
-```
-
-### 7. Run API Locally
-
-```bash
-python3 -m uvicorn api.index:app --reload
-# http://localhost:8000/docs
-```
-
-### 8. Deploy to Vercel
-
-```bash
-vercel --prod
-```
-
----
-
-## Redeployment Workflow
-
-When a new champion model is promoted, run:
-
-```bash
-python3 src/train.py
-python3 src/evaluate.py --model-name churn-gradient_boosting --run-id <RUN_ID> --promote
-python3 src/export_model.py
-git add bundle/ && git commit -m "Promote churn-gradient_boosting vX to champion"
-vercel --prod
-```
-
----
-
-## MLflow Registry Aliases
-
-```
-[Run] → @challenger → @champion
-```
-
-Use `src/evaluate.py --promote` to assign the `champion` alias with automatic threshold validation,
-or assign manually:
-
-```bash
-python3 src/register_model.py --run-id <RUN_ID> --model-name churn-gradient_boosting --alias champion
-```
-
----
-
-## API Reference
-
-![Swagger UI](docs/swagger_ui.png)
+## The Prediction API
 
 **Base URL:** `https://customer-churn-prediction-omega-opal.vercel.app`
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/` | Model info |
-| GET | `/health` | Health check |
-| POST | `/predict` | Churn prediction |
+| `GET` | `/` | Frontend UI |
+| `GET` | `/health` | Health check |
+| `GET` | `/docs` | Interactive API docs (Swagger UI) |
+| `POST` | `/predict` | Predict churn probability |
+| `GET` | `/api/status` | Model metadata (name, version, alias) |
 
-### GET /
+### Example: Predict churn with curl
 
-```json
-{
-  "status": "ok",
-  "model": "churn-gradient_boosting",
-  "alias": "champion",
-  "version": "2"
-}
-```
-
-### GET /health
-
-```json
-{
-  "status": "healthy",
-  "model_loaded": true
-}
-```
-
-### POST /predict
-
-**Request:**
 ```bash
 curl -X POST https://customer-churn-prediction-omega-opal.vercel.app/predict \
   -H 'Content-Type: application/json' \
   -d '{
     "features": {
-      "tenure": 12,
-      "monthlycharges": 65.5,
-      "totalcharges": 786.0,
-      "seniorcitizen": 0
+      "tenure": 2,
+      "monthlycharges": 95.0,
+      "totalcharges": 190.0,
+      "contract_Month-to-month": 1,
+      "internetservice_Fiber optic": 1,
+      "paymentmethod_Electronic check": 1
     }
   }'
 ```
@@ -268,28 +189,151 @@ curl -X POST https://customer-churn-prediction-omega-opal.vercel.app/predict \
 **Response:**
 ```json
 {
-  "churn": false,
-  "probability": 0.1507,
-  "model_name": "churn-gradient_boosting",
-  "model_version": "2"
+  "churn": true,
+  "probability": 0.6821,
+  "model_name": "churn-logistic_regression",
+  "model_version": "1"
 }
 ```
 
-The API accepts any subset of the training features. Missing features default to `0`.
+The API accepts any subset of features. Missing features default to `0`. The full list of 45 feature names is in `bundle/feature_cols.json`.
+
+---
+
+## Model Results
+
+Three models were trained and compared. The best model is automatically selected by evaluate.py:
+
+| Model | Accuracy | F1 | ROC-AUC | Promoted? |
+|---|---|---|---|---|
+| Random Forest | 0.783 | 0.52 | 0.813 | No |
+| Gradient Boosting | 0.796 | 0.58 | 0.839 | No (accuracy below threshold) |
+| **Logistic Regression** | **0.804** | **0.61** | **0.836** | **Yes → @champion** |
+
+---
+
+## Project Structure
+
+```
+customer_churn_prediction/
+├── data/                     # CSV and SQLite database (gitignored)
+├── bundle/                   # Exported model artifacts — committed to git for Vercel
+│   ├── model.pkl             # Trained model
+│   ├── scaler.pkl            # StandardScaler fitted on training data
+│   ├── feature_cols.json     # Ordered list of 45 feature column names
+│   └── meta.json             # Model metadata (name, alias, version, run_id)
+├── frontend/
+│   └── index.html            # Simple HTML/JS UI served at GET /
+├── src/
+│   ├── setup_db.py           # Load CSV into SQLite
+│   ├── preprocess.py         # Clean, encode, scale — returns train/test splits
+│   ├── train.py              # Train all models + log to MLflow
+│   ├── evaluate.py           # Run metrics, check thresholds, assign @champion alias
+│   ├── export_model.py       # Download @champion from MLflow → bundle/
+│   └── register_model.py     # Manually assign an alias by run ID
+├── api/
+│   ├── index.py              # FastAPI app — loads from bundle/ (no MLflow at runtime)
+│   └── requirements.txt      # Lightweight serving dependencies only
+├── tests/
+│   ├── test_api.py           # Tests for all API endpoints and bundle validation
+│   └── test_preprocess.py    # Tests for the preprocessing pipeline
+├── .github/
+│   └── workflows/
+│       ├── ci.yml            # Runs tests on every push to main
+│       └── deploy.yml        # Manual: export champion → test → push bundle → redeploy
+├── conftest.py               # pytest path setup
+├── vercel.json               # Vercel deployment config
+├── .env                      # Local environment variables (gitignored)
+└── requirements.txt          # Full development dependencies
+```
+
+---
+
+## Running It Yourself
+
+### 1. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Load the dataset into SQLite
+
+```bash
+python3 src/setup_db.py --csv data/WA_Fn-UseC_-Telco-Customer-Churn.csv
+```
+
+### 3. Train models
+
+MLflow uses a local SQLite file — no server needed:
+
+```bash
+# Make sure .env has: MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+python3 src/train.py
+```
+
+View results in the MLflow UI:
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+# Open http://localhost:5000
+```
+
+### 4. Evaluate and promote the best model
+
+```bash
+python3 src/evaluate.py --model-name churn-logistic_regression --run-id <RUN_ID> --promote
+```
+
+### 5. Export champion model to bundle
+
+```bash
+python3 src/export_model.py
+```
+
+### 6. Run the API locally
+
+```bash
+uvicorn api.index:app --reload
+# Open http://localhost:8000
+```
+
+### 7. Run the tests
+
+```bash
+pytest tests/ -v
+```
 
 ---
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` and fill in your values:
+
 | Variable | Description | Default |
 |---|---|---|
-| `MLFLOW_TRACKING_URI` | MLflow server URL | `http://localhost:5000` |
-| `MLFLOW_EXPERIMENT_NAME` | Experiment name | `customer-churn` |
-| `MLFLOW_MODEL_NAME` | Registered model name | `churn-gradient_boosting` |
-| `MLFLOW_MODEL_ALIAS` | Model alias to serve | `champion` |
-| `DB_PATH` | SQLite database path | `data/churn.db` |
+| `MLFLOW_TRACKING_URI` | MLflow tracking URI | `sqlite:///mlflow.db` |
+| `MLFLOW_EXPERIMENT_NAME` | Experiment name in MLflow | `customer-churn` |
+| `MLFLOW_MODEL_NAME` | Registered model name | `churn-logistic_regression` |
+| `MLFLOW_MODEL_ALIAS` | Alias to export | `champion` |
+| `DB_PATH` | Path to SQLite database | `data/churn.db` |
 | `DB_TABLE` | Table name | `churn` |
 | `TARGET_COL` | Target column name | `churn` |
 | `THRESHOLD_ACCURACY` | Minimum accuracy to promote | `0.80` |
 | `THRESHOLD_F1` | Minimum F1 score to promote | `0.55` |
 | `THRESHOLD_ROC_AUC` | Minimum ROC-AUC to promote | `0.80` |
+
+---
+
+## Key Design Decisions
+
+**Why SQLite instead of a CSV?**
+A database enforces schema, supports queries, and is more realistic than reading a raw CSV. For a small dataset like this it is sufficient. In production you would use PostgreSQL or BigQuery.
+
+**Why bundle the model instead of calling MLflow at runtime?**
+MLflow is a local development tool here. Vercel (the cloud host) has no access to your local MLflow database. The solution is to export the model files to `bundle/` and commit them to git. Vercel just loads the `.pkl` files directly — no MLflow dependency at runtime.
+
+**Why three separate models?**
+To show that model selection is part of the pipeline. The best model is not chosen manually — it is determined by `evaluate.py` against fixed thresholds. The `@champion` alias is reassigned automatically.
+
+**Why apply the StandardScaler separately instead of using a Pipeline?**
+The scaler is exported to `bundle/scaler.pkl` and applied in the API. This makes the scaling step explicit and visible, which is easier to understand and debug. A `sklearn.Pipeline` wrapping scaler + model would also work and is a valid alternative.
