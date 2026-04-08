@@ -103,8 +103,12 @@ DB_TABLE=churn
 
 ### 3. Start MLflow Tracking Server
 
+Run this from anywhere — paths are explicit so all MLflow data stays inside this project folder:
+
 ```bash
-mlflow server --host 0.0.0.0 --port 5000
+mlflow server --host 0.0.0.0 --port 5000 \
+  --backend-store-uri sqlite:///$(pwd)/mlflow.db \
+  --default-artifact-root $(pwd)/mlartifacts
 # UI available at http://localhost:5000
 ```
 
