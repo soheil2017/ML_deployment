@@ -49,10 +49,8 @@ def client():
 def test_root_endpoint(client):
     response = client.get("/")
     assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert "model" in data
-    assert "version" in data
+    assert "text/html" in response.headers["content-type"]
+    assert "Churn" in response.text
 
 
 def test_health_endpoint(client):
