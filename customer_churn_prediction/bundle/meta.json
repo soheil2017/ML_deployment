@@ -1,6 +1,6 @@
 {
-  "model_name": "churn-gradient_boosting",
+  "model_name": "churn-logistic_regression",
   "model_alias": "champion",
-  "model_version": "2",
-  "run_id": "48f1633140f449c1851b8de9ef5b0838"
+  "model_version": 1,
+  "run_id": "583d1fb274524e61b445abbf9dfd28c3"
 }

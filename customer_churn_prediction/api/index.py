@@ -2,20 +2,23 @@ import json
 import os
 import joblib
 import numpy as np
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 # Bundle directory — model artifacts exported from MLflow and committed to the repo
 BUNDLE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bundle")
 
-app = FastAPI(title="Customer Churn Prediction API", version="1.0.1")
+app = FastAPI(title="Customer Churn Prediction API", version="1.0.2")
 
 model = None
+scaler = None
 feature_cols = None
 meta = {}
 
 try:
     model = joblib.load(os.path.join(BUNDLE_DIR, "model.pkl"))
+    scaler = joblib.load(os.path.join(BUNDLE_DIR, "scaler.pkl"))
 
     with open(os.path.join(BUNDLE_DIR, "feature_cols.json")) as f:
         feature_cols = json.load(f)
@@ -62,7 +65,11 @@ def predict(request: PredictRequest):
         raise HTTPException(status_code=503, detail="Feature columns not available")
 
     # Align input with training feature columns (fill missing with 0)
-    x = np.array([request.features.get(col, 0) for col in feature_cols]).reshape(1, -1)
+    x = pd.DataFrame([{col: request.features.get(col, 0) for col in feature_cols}])
+
+    # Apply the same scaler used during training
+    if scaler is not None:
+        x = scaler.transform(x)
 
     prediction = model.predict(x)[0]
     probability = model.predict_proba(x)[0][1]

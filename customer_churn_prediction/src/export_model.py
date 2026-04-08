@@ -52,6 +52,12 @@ def export(model_name: str, alias: str):
         json.dump(feature_cols, f)
     print(f"Feature cols saved: {feature_cols_path} ({len(feature_cols)} features)")
 
+    # Download scaler artifact
+    scaler_artifact = client.download_artifacts(mv.run_id, "scaler.pkl")
+    import shutil
+    shutil.copy(scaler_artifact, os.path.join(BUNDLE_DIR, "scaler.pkl"))
+    print(f"Scaler saved: {os.path.join(BUNDLE_DIR, 'scaler.pkl')}")
+
     # Save bundle metadata
     meta = {
         "model_name": model_name,

@@ -20,6 +20,12 @@ def preprocess(df: pd.DataFrame, target_col: str = "churn"):
         print(f"Dropping ID columns: {id_cols}")
         df = df.drop(columns=id_cols)
 
+    # Convert object columns that should be numeric (e.g. totalcharges stored as string)
+    for col in df.select_dtypes(include="object").columns:
+        converted = pd.to_numeric(df[col], errors="coerce")
+        if converted.notna().mean() > 0.5:
+            df[col] = converted
+
     # Drop rows with missing values
     df = df.dropna()
 

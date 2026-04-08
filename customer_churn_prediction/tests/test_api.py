@@ -87,15 +87,15 @@ def test_predict_missing_features_defaults_to_zero(client):
 
 
 def test_predict_high_risk_customer(client):
-    # Short tenure + high charges = likely churner
+    # Short tenure + high charges + month-to-month contract = likely churner
     response = client.post("/predict", json={
         "features": {
             "tenure": 1,
             "monthlycharges": 100.0,
             "totalcharges": 100.0,
-            "contract_month-to-month": 1,
+            "contract_Month-to-month": 1,
             "seniorcitizen": 0
         }
     })
     assert response.status_code == 200
-    assert response.json()["probability"] > 0.0
+    assert response.json()["probability"] > 0.1

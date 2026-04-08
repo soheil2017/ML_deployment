@@ -31,7 +31,7 @@ MODELS = {
 }
 
 
-def train_and_log(model_name: str, model, X_train, X_test, y_train, y_test, feature_cols):
+def train_and_log(model_name: str, model, X_train, X_test, y_train, y_test, feature_cols, scaler):
     with mlflow.start_run(run_name=model_name):
         mlflow.set_tag("model_name", model_name)
         mlflow.log_params(model.get_params())
@@ -41,6 +41,11 @@ def train_and_log(model_name: str, model, X_train, X_test, y_train, y_test, feat
             json.dump(feature_cols, f)
         mlflow.log_artifact("feature_cols.json")
         os.remove("feature_cols.json")
+
+        # Log scaler so it can be exported with the model bundle
+        joblib.dump(scaler, "scaler.pkl")
+        mlflow.log_artifact("scaler.pkl")
+        os.remove("scaler.pkl")
 
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -81,7 +86,7 @@ def main():
 
     best_auc, best_run_id, best_model_name = 0, None, None
     for name, model in MODELS.items():
-        auc, run_id = train_and_log(name, model, X_train, X_test, y_train, y_test, feature_cols)
+        auc, run_id = train_and_log(name, model, X_train, X_test, y_train, y_test, feature_cols, scaler)
         if auc > best_auc:
             best_auc, best_run_id, best_model_name = auc, run_id, name
 
